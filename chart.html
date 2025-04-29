@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>4x2 Grid Charts</title>
+    <script src="https://unpkg.com/lightweight-charts@5.0.0/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr; /* 4 columns */
+            grid-template-rows: 1fr 1fr; /* 2 rows */
+            gap: 10px;
+            height: 100vh;
+        }
+        .chart-container {
+            width: 100%;
+            height: 100%;
+            background: black;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        .chart-container > div[id^="chart"] {
+            flex: 1;
+        }
+        .legend {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            z-index: 2;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 4px 6px;
+            font-size: 12px;
+            color: white;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+<div class="chart-container"><div class="legend" id="legend1">ATR: -- | ATR%: --</div><div id="chart1"></div></div>
+<div class="chart-container"><div class="legend" id="legend2">ATR: -- | ATR%: --</div><div id="chart2"></div></div>
+<div class="chart-container"><div class="legend" id="legend3">ATR: -- | ATR%: --</div><div id="chart3"></div></div>
+<div class="chart-container"><div class="legend" id="legend4">ATR: -- | ATR%: --</div><div id="chart4"></div></div>
+<div class="chart-container"><div class="legend" id="legend5">ATR: -- | ATR%: --</div><div id="chart5"></div></div>
+<div class="chart-container"><div class="legend" id="legend6">ATR: -- | ATR%: --</div><div id="chart6"></div></div>
+<div class="chart-container"><div class="legend" id="legend7">ATR: -- | ATR%: --</div><div id="chart7"></div></div>
+<div class="chart-container"><div class="legend" id="legend8">ATR: -- | ATR%: --</div><div id="chart8"></div></div>
+
+<script>
+function createChart(containerId, legendId, ticker) {
+    const container = document.getElementById(containerId);
+    const chart = LightweightCharts.createChart(container, {
+        width: container.clientWidth,
+        height: container.clientHeight,
+        layout: {
+            background: { type: 'solid', color: '#000000' },
+            textColor: '#ffffff',
+	    fontSize: 10.5,
+            panes: { separatorColor: '#333333', separatorHoverColor: '#555555', enableResize: true },
+        },
+        grid: {
+            vertLines: { color: '#000000' },
+            horzLines: { color: '#000000' },
+        },
+        rightPriceScale: {
+            visible: true,
+            scaleMargins: { top: 0.15, bottom: 0.05 },
+        },
+        timeScale: {
+            timeVisible: true,
+            secondsVisible: false,
+            barSpacing: 5,
+        },
+        crosshair: {
+            mode: LightweightCharts.CrosshairMode.Normal,
+            vertLine: { color: '#888', width: 1, style: LightweightCharts.LineStyle.Solid, labelVisible: true },
+            horzLine: { color: '#888', width: 1, style: LightweightCharts.LineStyle.Solid, labelVisible: true },
+        },
+    });
+
+    const candlestickSeries = chart.addSeries(LightweightCharts.CandlestickSeries, {
+        upColor: '#00FF00',
+        downColor: '#FF3333',
+        wickUpColor: '#888',
+        wickDownColor: '#888',
+        borderVisible: false,
+        priceLineVisible: false,
+    });
+
+    const ma10Series = chart.addSeries(LightweightCharts.LineSeries, {
+        color: '#FFD700',
+        lineWidth: 1,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+    });
+    const ma20Series = chart.addSeries(LightweightCharts.LineSeries, {
+        color: '#1E88E5',
+        lineWidth: 1,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+    });
+    const ma50Series = chart.addSeries(LightweightCharts.LineSeries, {
+        color: '#9370DB',
+        lineWidth: 1,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+    });
+
+    const volumeSeries = chart.addSeries(LightweightCharts.HistogramSeries, {
+        priceFormat: { type: 'volume' },
+        priceLineVisible: false,
+    }, 1);
+
+    const volumeMa10Series = chart.addSeries(LightweightCharts.LineSeries, {
+        color: '#FFD700',
+        lineWidth: 1,
+        lastValueVisible: false,
+        priceLineVisible: false,
+        crosshairMarkerVisible: false,
+    }, 1);
+
+
+
+
+
+    // After setting series
+    const mainPane = chart.panes()[0];
+    const volumePane = chart.panes()[1];
+
+    mainPane.setHeight(900);    // main candle pane height
+    volumePane.setHeight(70);  // volume pane height
+
+    LightweightCharts.createTextWatermark(mainPane, {
+        horzAlign: 'center',
+        vertAlign: 'center',
+        lines: [
+            {
+                text: ticker, // or dynamic ticker
+                color: 'rgba(255,255,255,0.2)',
+                fontSize: 48,
+                fontStyle: 'bold',
+            },
+        ],
+    });
+
+    function calculateATR(data, period = 14) {
+        const atrValues = [];
+        let trList = [];
+        for (let i = 0; i < data.length; i++) {
+            const high = data[i].high;
+            const low = data[i].low;
+            const close = data[i].close;
+            if (i === 0) {
+                trList.push(high - low);
+                atrValues.push(null);
+                continue;
+            }
+            const prevClose = data[i - 1].close;
+            const tr = Math.max(
+                high - low,
+                Math.abs(high - prevClose),
+                Math.abs(low - prevClose)
+            );
+            trList.push(tr);
+            if (i < period) {
+                atrValues.push(null);
+            } else {
+                const trSlice = trList.slice(i - period + 1, i + 1);
+                const atr = trSlice.reduce((sum, val) => sum + val, 0) / period;
+                atrValues.push(atr);
+            }
+        }
+        return atrValues;
+    }
+
+    fetch('/api/aapl')
+        .then(response => response.json())
+        .then(data => {
+            candlestickSeries.setData(data.candles);
+            ma10Series.setData(data.ma10);
+            ma20Series.setData(data.ma20);
+            ma50Series.setData(data.ma50);
+            volumeSeries.setData(data.volume);
+            volumeMa10Series.setData(data.volume_ma10);
+
+
+            const atrValues = calculateATR(data.candles, 14);
+
+            const lastIndex = data.candles.length - 1;
+            if (lastIndex >= 0 && atrValues[lastIndex] !== null) {
+                const lastAtr = atrValues[lastIndex];
+                const close = data.candles[lastIndex].close;
+                const atrPercent = (lastAtr / close) * 100;
+                document.getElementById(legendId).innerText = `ATR: ${lastAtr.toFixed(2)} | ATR%: ${atrPercent.toFixed(2)}%`;
+            }
+
+            chart.subscribeCrosshairMove(param => {
+                let index = -1;
+                if (param.point === undefined) {
+                    index = data.candles.length - 1;
+                } else if (param.time) {
+                    index = data.candles.findIndex(c => c.time === param.time);
+                }
+                if (index >= 0 && atrValues[index] !== null) {
+                    const lastAtr = atrValues[index];
+                    const close = data.candles[index].close;
+                    const atrPercent = (lastAtr / close) * 100;
+                    document.getElementById(legendId).innerText = `ATR: ${lastAtr.toFixed(2)} | ATR%: ${atrPercent.toFixed(2)}%`;
+                }
+            });
+        });
+}
+
+// Create 8 charts
+createChart('chart1', 'legend1', 'AAPL');
+createChart('chart2', 'legend2', 'AAPL');
+createChart('chart3', 'legend3', 'AAPL');
+createChart('chart4', 'legend4', 'AAPL');
+createChart('chart5', 'legend5', 'AAPL');
+createChart('chart6', 'legend6', 'AAPL');
+createChart('chart7', 'legend7', 'AAPL');
+createChart('chart8', 'legend8', 'AAPL');
+</script>
+</body>
+</html>
